@@ -1,0 +1,70 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicbarker/tauri/tauri-v2.4.0/crates/tauri-utils/schema.json",
+  "productName": "Untrace",
+  "version": "0.1.0",
+  "identifier": "com.untrace.vpn",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Untrace",
+        "width": 380,
+        "height": 680,
+        "resizable": true,
+        "minWidth": 340,
+        "minHeight": 580,
+        "decorations": true,
+        "transparent": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' https://*.untrace.net https://*.vercel.app http://64.227.82.253:* https://64.227.82.253:*; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "displayLanguageSelector": false,
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico"
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "signingIdentity": null,
+      "providerShortName": null,
+      "entitlements": "Entitlements.plist"
+    },
+    "resources": [
+      "resources/*"
+    ]
+  },
+  "plugins": {
+    "shell": {
+      "open": true,
+      "scope": [
+        {
+          "name": "tunnel-engine",
+          "cmd": "$RESOURCE/tunnel-engine",
+          "args": true,
+          "sidecar": true
+        }
+      ]
+    }
+  }
+}

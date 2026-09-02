@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+src-tauri/target/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# Tunnel engine binaries (platform-specific, downloaded at build time)
+src-tauri/resources/tunnel-engine*
+src-tauri/resources/wintun.dll
+src-tauri/resources/amneziawg-go*
+src-tauri/resources/wireguard-go*
+
+# Tauri build artifacts
+src-tauri/gen/
