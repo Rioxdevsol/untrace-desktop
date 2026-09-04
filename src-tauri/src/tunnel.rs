@@ -273,7 +273,8 @@ fn find_tunnel_engine() -> Option<String> {
     let candidates = [
         // Tauri resource directory (production)
         "resources/tunnel-engine",
-        // Development paths
+        // Development paths (tunnel engine variants)
+        "/usr/local/bin/tunnel-engine",
         "/usr/local/bin/amneziawg-go",
         "/usr/local/bin/wireguard-go",
         "/usr/bin/wireguard-go",
