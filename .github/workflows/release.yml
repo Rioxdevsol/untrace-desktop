@@ -92,9 +92,10 @@ jobs:
 
       # ── Build amneziawg-go tunnel engine from source ──────────
       - name: Clone amneziawg-go
+        shell: bash
         run: |
-          git clone ${{ env.AMNEZIAWG_REPO }} /tmp/amneziawg-go
-          cd /tmp/amneziawg-go
+          git clone ${{ env.AMNEZIAWG_REPO }} "$RUNNER_TEMP/amneziawg-go"
+          cd "$RUNNER_TEMP/amneziawg-go"
           git checkout ${{ env.AMNEZIAWG_COMMIT }}
 
       - name: Build tunnel engine
@@ -104,22 +105,22 @@ jobs:
           GOOS: ${{ matrix.go_os }}
           GOARCH: ${{ matrix.go_arch }}
         run: |
-          cd /tmp/amneziawg-go
-          go build -o ${{ github.workspace }}/src-tauri/resources/${{ matrix.tunnel_name }} \
+          cd "$RUNNER_TEMP/amneziawg-go"
+          go build -o "$GITHUB_WORKSPACE/src-tauri/resources/${{ matrix.tunnel_name }}" \
             -ldflags="-s -w" .
           echo "Built tunnel engine:"
-          ls -lh ${{ github.workspace }}/src-tauri/resources/${{ matrix.tunnel_name }}
-          file ${{ github.workspace }}/src-tauri/resources/${{ matrix.tunnel_name }}
+          ls -lh "$GITHUB_WORKSPACE/src-tauri/resources/${{ matrix.tunnel_name }}"
+          file "$GITHUB_WORKSPACE/src-tauri/resources/${{ matrix.tunnel_name }}"
 
       # ── Windows: download wintun.dll ─────────────────────────
       - name: Download wintun.dll (Windows)
         if: matrix.platform == 'windows-latest'
         shell: bash
         run: |
-          cd /tmp
+          cd "$RUNNER_TEMP"
           curl -fsSL "https://www.wintun.net/builds/wintun-${{ env.WINTUN_VERSION }}.zip" -o wintun.zip
           unzip -o wintun.zip "wintun/bin/amd64/wintun.dll"
-          cp wintun/bin/amd64/wintun.dll ${{ github.workspace }}/src-tauri/resources/wintun.dll
+          cp wintun/bin/amd64/wintun.dll "$GITHUB_WORKSPACE/src-tauri/resources/wintun.dll"
           echo "wintun.dll bundled:"
           ls -lh ${{ github.workspace }}/src-tauri/resources/wintun.dll
 
