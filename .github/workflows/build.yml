@@ -1,18 +1,18 @@
 # ════════════════════════════════════════════════════════════════
 # Untrace Desktop — Cross-platform Build (macOS, Windows, Linux)
-# Triggered on push to main or manual dispatch.
+# Triggered on push to main/master or manual dispatch.
 # Produces DMG (macOS), NSIS installer (Windows), AppImage/deb (Linux).
 # ════════════════════════════════════════════════════════════════
 name: Build Desktop
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
     tags: ['v*']
   workflow_dispatch:
 
 permissions:
-  contents: write  # for release uploads
+  contents: write
 
 jobs:
   build:
@@ -29,9 +29,6 @@ jobs:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             label: Windows-x64
-          - os: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-            label: Linux-x64
 
     runs-on: ${{ matrix.os }}
     name: Build (${{ matrix.label }})
@@ -50,26 +47,13 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install dependencies (Ubuntu)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-
       - name: Install npm dependencies
         run: npm ci
 
-      # ── Bundle tunnel engine sidecar ──────────────────────────
-      # In production, download pre-built amneziawg-go from a private
-      # release or build it. For now, create a placeholder so Tauri
-      # bundles the resources directory.
       - name: Prepare tunnel engine placeholder
         shell: bash
         run: |
           mkdir -p src-tauri/resources
-          # TODO: Replace with actual tunnel engine binary download
-          # For macOS: brew install go && GOOS=darwin GOARCH=arm64 go build ./cmd/amneziawg-go
-          # For Windows: download from amneziawg release
           echo "placeholder" > src-tauri/resources/tunnel-engine
           chmod +x src-tauri/resources/tunnel-engine 2>/dev/null || true
 
@@ -77,17 +61,19 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # macOS code signing (optional)
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Skip code signing for unsigned builds
+          TAURI_SIGNING_PRIVATE_KEY: ""
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Untrace v__VERSION__'
-          releaseBody: 'Desktop app release'
+          releaseBody: |
+            ## Untrace v__VERSION__
+
+            Download the installer for your platform below.
+
+            ### Installation Notes
+            - **macOS**: Right-click the app → Open (bypasses Gatekeeper for unsigned apps)
+            - **Windows**: If SmartScreen appears → More info → Run anyway
           releaseDraft: true
           prerelease: false
           args: --target ${{ matrix.target }}
