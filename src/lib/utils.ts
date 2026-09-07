@@ -15,21 +15,6 @@ export function formatDuration(seconds: number): string {
   return [h, m, s].map((v) => String(v).padStart(2, "0")).join(":");
 }
 
-/** Get region label from region code */
-export function regionLabel(region: string): string {
-  const map: Record<string, string> = {
-    "eu-west": "Europe West",
-    "eu-central": "Europe Central",
-    "eu-north": "Europe North",
-    "us-east": "US East",
-    "us-west": "US West",
-    "ap-northeast": "Asia Pacific",
-    "ap-southeast": "Asia Pacific",
-    "ap-south": "Oceania",
-  };
-  return map[region] ?? region;
-}
-
 /** Get flag emoji for region (using region code heuristics) */
 export function regionFlag(nodeId: string): string {
   const prefix = nodeId.split("-")[0];
@@ -44,5 +29,22 @@ export function regionFlag(nodeId: string): string {
     SYD: "\u{1F1E6}\u{1F1FA}", // AU
     LON: "\u{1F1EC}\u{1F1E7}", // UK
   };
-  return flags[prefix] ?? "";
+  return flags[prefix] ?? "\u{1F30D}";
+}
+
+/** Get region display name */
+export function regionLabel(nodeId: string): string {
+  const prefix = nodeId.split("-")[0];
+  const labels: Record<string, string> = {
+    AMS: "Netherlands",
+    FRA: "Germany",
+    HEL: "Finland",
+    NYC: "United States",
+    LAX: "United States",
+    TKY: "Japan",
+    SGP: "Singapore",
+    SYD: "Australia",
+    LON: "United Kingdom",
+  };
+  return labels[prefix] ?? "Unknown";
 }

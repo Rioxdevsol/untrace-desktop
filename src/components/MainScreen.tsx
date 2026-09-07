@@ -39,25 +39,17 @@ export function MainScreen({ status, device, nodes, onSelectLocation }: Props) {
     }
   }, [isConnected, status?.connected_since]);
 
-  async function handleConnect() {
+  async function handleToggle() {
     setActionLoading(true);
     setError(null);
     try {
-      await connectTunnel();
+      if (isConnected) {
+        await disconnectTunnel();
+      } else {
+        await connectTunnel();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Connection failed");
-    } finally {
-      setActionLoading(false);
-    }
-  }
-
-  async function handleDisconnect() {
-    setActionLoading(true);
-    setError(null);
-    try {
-      await disconnectTunnel();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Disconnect failed");
     } finally {
       setActionLoading(false);
     }
@@ -69,24 +61,24 @@ export function MainScreen({ status, device, nodes, onSelectLocation }: Props) {
 
   return (
     <div className="flex flex-col items-center px-6 py-8 animate-fade-in">
-      {/* Connection status indicator */}
-      <div className="relative mb-6">
-        {/* Pulsing ring when connected */}
+      {/* Big connect button — NordVPN style */}
+      <div className="relative mb-6 mt-4">
+        {/* Outer glow rings when connected */}
         {isConnected && (
           <>
-            <div className="absolute inset-[-12px] rounded-full border border-accent/20 animate-pulse-ring" />
-            <div className="absolute inset-[-24px] rounded-full border border-accent/10 animate-pulse-ring" style={{ animationDelay: "0.5s" }} />
+            <div className="absolute inset-[-16px] rounded-full border border-accent/15 animate-pulse-ring" />
+            <div className="absolute inset-[-32px] rounded-full border border-accent/8 animate-pulse-ring" style={{ animationDelay: "0.6s" }} />
           </>
         )}
 
         {/* Spinning ring when connecting */}
         {isConnecting && (
-          <div className="absolute inset-[-8px]">
-            <svg className="w-full h-full animate-spin-slow" viewBox="0 0 100 100">
+          <div className="absolute inset-[-12px]">
+            <svg className="w-full h-full animate-spin-slow" viewBox="0 0 120 120">
               <circle
-                cx="50" cy="50" r="46"
+                cx="60" cy="60" r="56"
                 fill="none"
-                stroke="#00d4aa"
+                stroke="#C6F24E"
                 strokeWidth="1.5"
                 strokeDasharray="80 200"
                 strokeLinecap="round"
@@ -95,100 +87,90 @@ export function MainScreen({ status, device, nodes, onSelectLocation }: Props) {
           </div>
         )}
 
-        {/* Status circle */}
-        <div
-          className={`w-24 h-24 rounded-full flex items-center justify-center border-2 transition-colors duration-500 ${
+        {/* The big button */}
+        <button
+          onClick={handleToggle}
+          disabled={isBusy}
+          className={`relative w-32 h-32 rounded-full flex flex-col items-center justify-center border-2 transition-all duration-500 cursor-pointer ${
             isConnected
-              ? "border-accent bg-accent/10"
+              ? "border-accent bg-accent/10 animate-glow-pulse"
               : isConnecting || isDisconnecting
                 ? "border-warning/50 bg-warning/5"
-                : "border-border bg-bg-surface"
-          }`}
+                : "border-border hover:border-accent/40 bg-bg-surface hover:bg-accent/5"
+          } ${isBusy ? "cursor-wait" : ""}`}
         >
           {isConnected ? (
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00d4aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              <polyline points="9 12 11 14 15 10" />
-            </svg>
+            <>
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#C6F24E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <polyline points="9 12 11 14 15 10" />
+              </svg>
+              <span className="text-[10px] font-mono text-accent mt-1 tracking-wider uppercase">
+                protected
+              </span>
+            </>
           ) : isConnecting ? (
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#e8a820" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
+            <>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#e8a820" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+              <span className="text-[10px] font-mono text-warning mt-1 tracking-wider">
+                connecting
+              </span>
+            </>
           ) : (
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6b6b80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
+            <>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#8a8b7e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+              </svg>
+              <span className="text-[10px] font-sans font-medium text-text-secondary mt-1.5">
+                Connect
+              </span>
+            </>
           )}
-        </div>
+        </button>
       </div>
 
-      {/* State label */}
-      <div className="text-center mb-2">
-        <h2 className="text-lg font-semibold">
-          {isConnected
-            ? "Protected"
-            : isConnecting
-              ? "Establishing Tunnel"
-              : isDisconnecting
-                ? "Disconnecting"
-                : "Not Protected"}
-        </h2>
-        <p className="text-xs text-text-dim font-mono mt-1">
-          {isConnected
-            ? formatDuration(elapsed)
-            : isConnecting
-              ? "negotiating encrypted channel..."
-              : "tap to connect"}
-        </p>
+      {/* Connection timer or tap hint */}
+      <div className="text-center mb-4">
+        {isConnected ? (
+          <p className="text-sm font-mono text-accent/80">{formatDuration(elapsed)}</p>
+        ) : isConnecting ? (
+          <p className="text-xs font-mono text-text-dim">establishing encrypted tunnel...</p>
+        ) : (
+          <p className="text-xs text-text-dim">Tap to connect</p>
+        )}
       </div>
-
-      {/* Connect / Disconnect button */}
-      <button
-        onClick={isConnected ? handleDisconnect : handleConnect}
-        disabled={isBusy}
-        className={`mt-4 w-48 py-3 text-sm font-semibold rounded-xl transition-all ${
-          isConnected
-            ? "bg-danger/10 border border-danger/30 text-danger hover:bg-danger/20"
-            : isBusy
-              ? "bg-bg-elevated border border-border text-text-dim cursor-not-allowed"
-              : "bg-accent text-bg-primary hover:bg-accent-bright"
-        }`}
-      >
-        {isConnecting
-          ? "Connecting..."
-          : isDisconnecting
-            ? "Disconnecting..."
-            : isConnected
-              ? "Disconnect"
-              : "Connect"}
-      </button>
 
       {error && (
-        <p className="text-xs text-danger mt-3 text-center max-w-xs animate-fade-in">
-          {error}
-        </p>
+        <div className="mb-4 px-4 py-2 rounded-lg bg-danger/10 border border-danger/20 max-w-xs">
+          <p className="text-xs text-danger text-center">{error}</p>
+        </div>
       )}
 
       {/* Location selector */}
       <button
         onClick={onSelectLocation}
-        className="mt-6 w-full max-w-xs p-3 rounded-lg bg-bg-surface border border-border hover:border-border-bright transition-colors text-left"
+        className="w-full max-w-xs p-3.5 rounded-xl bg-bg-surface border border-border hover:border-accent/30 transition-colors text-left"
       >
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <span className="text-base">
+          <div className="flex items-center gap-3">
+            <span className="text-lg">
               {selectedNode ? regionFlag(selectedNode.id) : "\u{1F30D}"}
             </span>
             <div>
               <div className="text-sm font-medium text-text-primary">
-                {selectedNode?.name ?? "Select Location"}
+                {selectedNode?.name ?? "Select Server"}
               </div>
               <div className="text-[10px] font-mono text-text-dim mt-0.5">
-                {selectedNode ? selectedNode.id : "auto-select"}
+                {selectedNode
+                  ? `${selectedNode.id} · ${selectedNode.load}% load`
+                  : "auto-select best server"}
               </div>
             </div>
           </div>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b6b80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a8b7e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="9 18 15 12 9 6" />
           </svg>
         </div>
@@ -196,34 +178,26 @@ export function MainScreen({ status, device, nodes, onSelectLocation }: Props) {
 
       {/* Stats (visible when connected) */}
       {isConnected && (
-        <div className="mt-6 w-full max-w-xs animate-fade-in">
+        <div className="mt-5 w-full max-w-xs animate-fade-in space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <StatCard
-              label="sent"
+              label="upload"
               value={formatBytes(status?.bytes_sent ?? 0)}
-              icon={
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="17 11 12 6 7 11" /><line x1="12" y1="18" x2="12" y2="6" />
-                </svg>
-              }
+              color="text-accent"
             />
             <StatCard
-              label="received"
+              label="download"
               value={formatBytes(status?.bytes_received ?? 0)}
-              icon={
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="7 13 12 18 17 13" /><line x1="12" y1="6" x2="12" y2="18" />
-                </svg>
-              }
+              color="text-accent"
             />
           </div>
 
           {/* IP info */}
-          <div className="mt-3 p-3 rounded-lg bg-bg-surface border border-border">
+          <div className="p-3.5 rounded-xl bg-bg-surface border border-border">
             <div className="flex items-center justify-between text-xs">
               <span className="text-text-dim font-mono">tunnel ip</span>
               <span className="text-text-secondary font-mono">
-                {status?.tunnel_ip ?? "—"}
+                {status?.tunnel_ip ?? "\u2014"}
               </span>
             </div>
             {status?.real_ip && (
@@ -238,11 +212,22 @@ export function MainScreen({ status, device, nodes, onSelectLocation }: Props) {
         </div>
       )}
 
-      {/* Device info */}
-      <div className="mt-6 w-full max-w-xs">
-        <div className="flex items-center gap-2 text-[10px] font-mono text-text-dim tracking-wider">
+      {/* Disconnect button (when connected) */}
+      {isConnected && (
+        <button
+          onClick={handleToggle}
+          disabled={isBusy}
+          className="mt-5 px-6 py-2.5 text-xs font-medium rounded-lg bg-danger/10 border border-danger/20 text-danger hover:bg-danger/20 transition-colors"
+        >
+          Disconnect
+        </button>
+      )}
+
+      {/* Version + device info */}
+      <div className="mt-auto pt-6 w-full max-w-xs">
+        <div className="flex items-center justify-center gap-2 text-[10px] font-mono text-text-dim tracking-wider">
           <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? "bg-accent" : "bg-text-dim"}`} />
-          {device?.name ?? "unknown device"} / {device?.id?.slice(0, 8) ?? "—"}
+          untrace v0.1.0
         </div>
       </div>
     </div>
@@ -252,19 +237,18 @@ export function MainScreen({ status, device, nodes, onSelectLocation }: Props) {
 function StatCard({
   label,
   value,
-  icon,
+  color,
 }: {
   label: string;
   value: string;
-  icon: React.ReactNode;
+  color: string;
 }) {
   return (
-    <div className="p-3 rounded-lg bg-bg-surface border border-border">
-      <div className="flex items-center gap-1.5 text-text-dim mb-1">
-        {icon}
-        <span className="text-[10px] font-mono tracking-wider uppercase">{label}</span>
+    <div className="p-3 rounded-xl bg-bg-surface border border-border">
+      <div className="text-[10px] font-mono tracking-wider uppercase text-text-dim mb-1">
+        {label}
       </div>
-      <div className="text-sm font-mono font-medium text-text-primary">{value}</div>
+      <div className={`text-sm font-mono font-medium ${color}`}>{value}</div>
     </div>
   );
 }

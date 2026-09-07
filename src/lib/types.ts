@@ -16,19 +16,20 @@ export interface ExitNode {
   load: number;
 }
 
-/** Paired device info */
+/** Provisioned device info */
 export interface DeviceInfo {
   id: string;
-  name: string;
   ipAddress: string;
-  nodeId: string | null;
+  nodeId: string;
+  nodeName: string;
+  region: string;
+  expiresAt: number;
 }
 
 /** Full connection status from backend */
 export interface ConnectionStatus {
   state: ConnectionState;
-  device_paired: boolean;
-  device_name: string | null;
+  is_provisioned: boolean;
   selected_node: string | null;
   connected_since: number | null;
   bytes_sent: number;
@@ -52,11 +53,36 @@ export interface Settings {
   launch_on_boot: boolean;
   kill_switch: boolean;
   selected_node_id: string | null;
+  auto_reconnect: boolean;
 }
 
-/** Pair result */
-export interface PairResult {
-  success: boolean;
-  device: DeviceInfo | null;
-  error: string | null;
+/** Provision result from server */
+export interface ProvisionResult {
+  interface: {
+    address: string;
+    dns: string[];
+    jc: number;
+    jmin: number;
+    jmax: number;
+    s1: number;
+    s2: number;
+    h1: number;
+    h2: number;
+    h3: number;
+    h4: number;
+  };
+  peer: {
+    publicKey: string;
+    presharedKey: string;
+    endpoint: string;
+    allowedIPs: string;
+    persistentKeepalive: number;
+  };
+  meta: {
+    deviceId: string;
+    nodeId: string;
+    nodeName: string;
+    region: string;
+    expiresAt: number;
+  };
 }

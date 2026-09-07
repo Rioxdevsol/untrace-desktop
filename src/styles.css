@@ -1,20 +1,22 @@
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --bg-primary: #0a0a0f;
-  --bg-secondary: #0d0d14;
-  --bg-surface: #111119;
-  --bg-elevated: #16161f;
-  --border: #1a1a28;
-  --border-bright: #252538;
-  --text-primary: #e0e0ec;
-  --text-secondary: #6b6b80;
-  --text-dim: #3a3a50;
-  --accent: #00d4aa;
-  --accent-bright: #00f0c0;
-  --success: #00d4aa;
+  --bg-primary: #0c0d09;
+  --bg-secondary: #111210;
+  --bg-surface: #161714;
+  --bg-elevated: #1c1d19;
+  --border: #252620;
+  --border-bright: #33342c;
+  --text-primary: #e8e8e0;
+  --text-secondary: #8a8b7e;
+  --text-dim: #555649;
+  --accent: #C6F24E;
+  --accent-bright: #d4f872;
+  --success: #C6F24E;
   --warning: #e8a820;
   --danger: #e04040;
 }
@@ -24,7 +26,7 @@ body {
   color: var(--text-primary);
   margin: 0;
   padding: 0;
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-family: "Space Grotesk", system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   user-select: none;
@@ -53,6 +55,11 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(198, 242, 78, 0.1); }
+  50% { box-shadow: 0 0 40px rgba(198, 242, 78, 0.25); }
+}
+
 .animate-pulse-ring {
   animation: pulse-ring 2s ease-in-out infinite;
 }
@@ -65,11 +72,16 @@ body {
   animation: fade-in 0.3s ease-out;
 }
 
+.animate-glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .animate-pulse-ring,
   .animate-spin-slow,
-  .animate-fade-in {
+  .animate-fade-in,
+  .animate-glow-pulse {
     animation: none !important;
   }
 }

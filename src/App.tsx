@@ -1,22 +1,21 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { PairScreen } from "./components/PairScreen";
 import { MainScreen } from "./components/MainScreen";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { LocationPicker } from "./components/LocationPicker";
-import { getConnectionStatus, getNodes, getDeviceInfo } from "./lib/commands";
+import { getConnectionStatus, getNodes, getDeviceInfo, provisionDevice } from "./lib/commands";
 import type { ConnectionStatus, ExitNode, DeviceInfo } from "./lib/types";
 
 type View = "main" | "locations" | "settings";
 
 export default function App() {
-  const [isPaired, setIsPaired] = useState<boolean | null>(null);
   const [status, setStatus] = useState<ConnectionStatus | null>(null);
   const [nodes, setNodes] = useState<ExitNode[]>([]);
   const [device, setDevice] = useState<DeviceInfo | null>(null);
   const [view, setView] = useState<View>("main");
+  const [initializing, setInitializing] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Initial load
+  // Initial load — auto-provision if needed
   useEffect(() => {
     async function init() {
       try {
@@ -28,17 +27,28 @@ export default function App() {
         setStatus(s);
         setNodes(n.nodes);
         setDevice(d);
-        setIsPaired(s.device_paired);
-      } catch {
-        setIsPaired(false);
+
+        // Auto-provision if not yet provisioned
+        if (!s.is_provisioned && !d) {
+          try {
+            const newDevice = await provisionDevice();
+            setDevice(newDevice);
+          } catch (err) {
+            console.error("Auto-provision failed:", err);
+          }
+        }
+      } catch (err) {
+        console.error("Init failed:", err);
+      } finally {
+        setInitializing(false);
       }
     }
     init();
   }, []);
 
-  // Poll status while connected or connecting
+  // Poll status
   useEffect(() => {
-    if (!isPaired) return;
+    if (initializing) return;
 
     pollRef.current = setInterval(async () => {
       try {
@@ -52,18 +62,7 @@ export default function App() {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [isPaired]);
-
-  const handlePaired = useCallback((d: DeviceInfo) => {
-    setDevice(d);
-    setIsPaired(true);
-  }, []);
-
-  const handleUnpaired = useCallback(() => {
-    setIsPaired(false);
-    setDevice(null);
-    setStatus(null);
-  }, []);
+  }, [initializing]);
 
   const refreshNodes = useCallback(async () => {
     try {
@@ -75,11 +74,13 @@ export default function App() {
   }, []);
 
   // Loading state
-  if (isPaired === null) {
+  if (initializing) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-bg-primary">
         <div className="flex flex-col items-center gap-4">
-          <ShieldIcon className="w-10 h-10 text-accent opacity-60 animate-pulse" />
+          <div className="w-12 h-12 rounded-2xl border border-accent/20 bg-accent/5 flex items-center justify-center">
+            <ShieldIcon className="w-6 h-6 text-accent opacity-60 animate-pulse" />
+          </div>
           <span className="text-xs font-mono text-text-dim tracking-widest uppercase">
             initializing
           </span>
@@ -88,21 +89,15 @@ export default function App() {
     );
   }
 
-  // Not paired — show pairing screen
-  if (!isPaired) {
-    return <PairScreen onPaired={handlePaired} />;
-  }
-
-  // Paired — show main app
   return (
     <div className="min-h-screen bg-bg-primary flex flex-col">
       {/* Header */}
-      <header className="flex items-center justify-between px-5 py-3 border-b border-border bg-bg-primary/80 backdrop-blur-sm">
-        <div className="flex items-center gap-2">
+      <header className="flex items-center justify-between px-5 py-3 border-b border-border bg-bg-primary/80 backdrop-blur-sm" data-tauri-drag-region>
+        <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg border border-accent/20 bg-accent/5 flex items-center justify-center">
             <ShieldIcon className="w-3.5 h-3.5 text-accent" />
           </div>
-          <span className="text-[13px] font-semibold tracking-tight text-text-primary">
+          <span className="text-[14px] font-display tracking-tight text-text-primary uppercase">
             untrace
           </span>
         </div>
@@ -114,9 +109,7 @@ export default function App() {
             label="Connection"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="16" />
-              <line x1="8" y1="12" x2="16" y2="12" />
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
             </svg>
           </NavButton>
           <NavButton
@@ -156,16 +149,13 @@ export default function App() {
           <LocationPicker
             nodes={nodes}
             selectedId={status?.selected_node ?? null}
-            onSelect={(id) => {
+            onSelect={() => {
               setView("main");
             }}
           />
         )}
         {view === "settings" && (
-          <SettingsPanel
-            device={device}
-            onUnpair={handleUnpaired}
-          />
+          <SettingsPanel />
         )}
       </div>
     </div>

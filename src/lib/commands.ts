@@ -9,7 +9,6 @@ import type {
   ConnectionStatus,
   DeviceInfo,
   ExitNode,
-  PairResult,
   Settings,
   TunnelStats,
 } from "./types";
@@ -30,7 +29,7 @@ async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T
 // ─── Mock state for browser dev ─────────────────────────────────────
 
 let mockState: {
-  paired: boolean;
+  provisioned: boolean;
   connected: boolean;
   connecting: boolean;
   device: DeviceInfo | null;
@@ -38,7 +37,7 @@ let mockState: {
   selectedNode: string | null;
   settings: Settings;
 } = {
-  paired: false,
+  provisioned: false,
   connected: false,
   connecting: false,
   device: null,
@@ -49,38 +48,29 @@ let mockState: {
     launch_on_boot: false,
     kill_switch: true,
     selected_node_id: null,
+    auto_reconnect: true,
   },
 };
 
 const MOCK_NODES: ExitNode[] = [
-  { id: "AMS-01", name: "Amsterdam 1", region: "eu-west", status: "active", stealthMode: "wstunnel", load: 24 },
-  { id: "FRA-01", name: "Frankfurt 1", region: "eu-central", status: "active", stealthMode: "wstunnel", load: 18 },
-  { id: "NYC-01", name: "New York 1", region: "us-east", status: "active", stealthMode: "wstunnel", load: 31 },
-  { id: "LAX-01", name: "Los Angeles 1", region: "us-west", status: "active", stealthMode: "wstunnel", load: 12 },
-  { id: "TKY-01", name: "Tokyo 1", region: "ap-northeast", status: "active", stealthMode: "wstunnel", load: 45 },
-  { id: "SGP-01", name: "Singapore 1", region: "ap-southeast", status: "active", stealthMode: "wstunnel", load: 38 },
-  { id: "SYD-01", name: "Sydney 1", region: "ap-south", status: "active", stealthMode: "wstunnel", load: 8 },
-  { id: "HEL-02", name: "Helsinki 2", region: "eu-north", status: "active", stealthMode: "wstunnel", load: 15 },
+  { id: "AMS-01", name: "Amsterdam", region: "eu-west", status: "active", stealthMode: "wstunnel", load: 24 },
 ];
 
 async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
-  // Simulate network delay
   await new Promise((r) => setTimeout(r, 300 + Math.random() * 200));
 
   switch (cmd) {
-    case "pair_device": {
-      const token = (args?.token as string) || "";
-      if (token.length >= 8) {
-        mockState.paired = true;
-        mockState.device = {
-          id: "dev-" + Math.random().toString(36).slice(2, 8),
-          name: "Desktop",
-          ipAddress: "10.10.1." + Math.floor(Math.random() * 254 + 1),
-          nodeId: "AMS-01",
-        };
-        return { success: true, device: mockState.device, error: null } as T;
-      }
-      return { success: false, device: null, error: "Invalid token" } as T;
+    case "provision_device": {
+      mockState.provisioned = true;
+      mockState.device = {
+        id: "dev-" + Math.random().toString(36).slice(2, 8),
+        ipAddress: "10.10.1." + Math.floor(Math.random() * 254 + 1),
+        nodeId: "AMS-01",
+        nodeName: "Amsterdam",
+        region: "eu-west",
+        expiresAt: Math.floor(Date.now() / 1000) + 30 * 86400,
+      };
+      return mockState.device as T;
     }
 
     case "get_connection_status": {
@@ -91,9 +81,8 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
           : "disconnected";
       return {
         state,
-        device_paired: mockState.paired,
-        device_name: mockState.device?.name ?? null,
-        selected_node: mockState.selectedNode,
+        is_provisioned: mockState.provisioned,
+        selected_node: mockState.selectedNode || "AMS-01",
         connected_since: mockState.connectedSince,
         bytes_sent: mockState.connected ? Math.floor(Math.random() * 50000000) : 0,
         bytes_received: mockState.connected ? Math.floor(Math.random() * 200000000) : 0,
@@ -138,13 +127,6 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
     case "get_device_info":
       return mockState.device as T;
 
-    case "unpair_device":
-      mockState.paired = false;
-      mockState.device = null;
-      mockState.connected = false;
-      mockState.connectedSince = null;
-      return true as T;
-
     default:
       throw new Error(`Unknown command: ${cmd}`);
   }
@@ -152,8 +134,9 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
 
 // ─── Exported typed commands ────────────────────────────────────────
 
-export async function pairDevice(token: string): Promise<PairResult> {
-  return invoke<PairResult>("pair_device", { token });
+/** Provision this device against the control plane (accountless) */
+export async function provisionDevice(nodeId?: string): Promise<DeviceInfo> {
+  return invoke<DeviceInfo>("provision_device", nodeId ? { nodeId } : undefined);
 }
 
 export async function getConnectionStatus(): Promise<ConnectionStatus> {
@@ -186,8 +169,4 @@ export async function updateSettings(settings: Settings): Promise<Settings> {
 
 export async function getDeviceInfo(): Promise<DeviceInfo | null> {
   return invoke<DeviceInfo | null>("get_device_info");
-}
-
-export async function unpairDevice(): Promise<boolean> {
-  return invoke<boolean>("unpair_device");
 }

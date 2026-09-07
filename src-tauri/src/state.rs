@@ -29,18 +29,22 @@ pub struct ExitNode {
     pub load: u8,
 }
 
-/// Device information after pairing
+/// Device information after provisioning (accountless)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceInfo {
     pub id: String,
-    pub name: String,
     #[serde(rename = "ipAddress")]
     pub ip_address: String,
     #[serde(rename = "nodeId")]
-    pub node_id: Option<String>,
+    pub node_id: String,
+    #[serde(rename = "nodeName")]
+    pub node_name: String,
+    pub region: String,
+    #[serde(rename = "expiresAt")]
+    pub expires_at: i64,
 }
 
-/// Tunnel configuration from the control plane
+/// Tunnel configuration from provisioning
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TunnelConfig {
     pub private_key: String,
@@ -83,6 +87,7 @@ pub struct Settings {
     pub launch_on_boot: bool,
     pub kill_switch: bool,
     pub selected_node_id: Option<String>,
+    pub auto_reconnect: bool,
 }
 
 impl Default for Settings {
@@ -92,6 +97,7 @@ impl Default for Settings {
             launch_on_boot: false,
             kill_switch: true, // safe default
             selected_node_id: None,
+            auto_reconnect: true,
         }
     }
 }
@@ -100,7 +106,6 @@ impl Default for Settings {
 #[derive(Debug)]
 pub struct AppState {
     pub connection_state: ConnectionState,
-    pub device_token: Option<String>,
     pub device_info: Option<DeviceInfo>,
     pub tunnel_config: Option<TunnelConfig>,
     pub tunnel_stats: TunnelStats,
@@ -115,7 +120,6 @@ impl Default for AppState {
     fn default() -> Self {
         Self {
             connection_state: ConnectionState::Disconnected,
-            device_token: None,
             device_info: None,
             tunnel_config: None,
             tunnel_stats: TunnelStats::default(),
@@ -123,7 +127,7 @@ impl Default for AppState {
             nodes: Vec::new(),
             real_ip: None,
             tunnel_pid: None,
-            // Control plane API base — proxied through nginx on the VPS
+            // Control plane API — proxied through Vercel
             api_base: "https://untrace-vpn.vercel.app/api".to_string(),
         }
     }

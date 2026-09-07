@@ -18,13 +18,12 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
-            api::pair_device,
+            api::provision_device,
             api::get_connection_status,
             api::get_nodes,
             api::get_settings,
             api::update_settings,
             api::get_device_info,
-            api::unpair_device,
             tunnel::connect_tunnel,
             tunnel::disconnect_tunnel,
             tunnel::get_tunnel_stats,

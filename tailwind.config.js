@@ -4,33 +4,35 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Untrace brand palette — matched from web app
+        // AP brand palette
         bg: {
-          primary: "#0a0a0f",
-          secondary: "#0d0d14",
-          surface: "#111119",
-          elevated: "#16161f",
+          primary: "#0c0d09",
+          secondary: "#111210",
+          surface: "#161714",
+          elevated: "#1c1d19",
         },
         border: {
-          DEFAULT: "#1a1a28",
-          bright: "#252538",
+          DEFAULT: "#252620",
+          bright: "#33342c",
         },
         text: {
-          primary: "#e0e0ec",
-          secondary: "#6b6b80",
-          dim: "#3a3a50",
+          primary: "#e8e8e0",
+          secondary: "#8a8b7e",
+          dim: "#555649",
         },
         accent: {
-          DEFAULT: "#00d4aa",
-          bright: "#00f0c0",
+          DEFAULT: "#C6F24E",
+          bright: "#d4f872",
+          dim: "#9abf3d",
         },
-        success: "#00d4aa",
+        success: "#C6F24E",
         warning: "#e8a820",
         danger: "#e04040",
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
-        mono: ["JetBrains Mono", "SF Mono", "Menlo", "monospace"],
+        display: ["'Archivo Black'", "system-ui", "sans-serif"],
+        sans: ["'Space Grotesk'", "system-ui", "sans-serif"],
+        mono: ["'JetBrains Mono'", "SF Mono", "Menlo", "monospace"],
       },
     },
   },
