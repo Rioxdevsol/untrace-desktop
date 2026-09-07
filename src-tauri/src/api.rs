@@ -290,96 +290,16 @@ struct Keypair {
 /// Generate an X25519 keypair for the tunnel.
 /// Returns base64-encoded public and private keys.
 fn generate_x25519_keypair() -> Keypair {
-    use rand::RngCore;
     use base64::{engine::general_purpose::STANDARD as B64, Engine};
+    use x25519_dalek::{StaticSecret, PublicKey};
+    use rand::rngs::OsRng;
 
-    // Generate 32 random bytes for private key
-    let mut private_bytes = [0u8; 32];
-    rand::thread_rng().fill_bytes(&mut private_bytes);
-
-    // Clamp private key per X25519 spec
-    private_bytes[0] &= 248;
-    private_bytes[31] &= 127;
-    private_bytes[31] |= 64;
-
-    // Compute public key via X25519 base point multiplication
-    let private_key = x25519_dalek_compute(&private_bytes);
+    let secret = StaticSecret::random_from_rng(OsRng);
+    let public = PublicKey::from(&secret);
 
     Keypair {
-        public_key: B64.encode(private_key.1),
-        private_key: B64.encode(private_key.0),
-    }
-}
-
-/// X25519 scalar multiplication with the base point.
-/// Returns (private_key_bytes, public_key_bytes).
-fn x25519_dalek_compute(private: &[u8; 32]) -> ([u8; 32], [u8; 32]) {
-    // Use the x25519 base point
-    // Curve25519 base point is [9, 0, 0, ...]
-    let mut base_point = [0u8; 32];
-    base_point[0] = 9;
-
-    let public = x25519_scalar_mult(private, &base_point);
-    (*private, public)
-}
-
-/// X25519 scalar multiplication (Montgomery ladder).
-/// This is a simplified implementation for key generation.
-fn x25519_scalar_mult(scalar: &[u8; 32], point: &[u8; 32]) -> [u8; 32] {
-    // For production builds, we'd use the x25519-dalek crate.
-    // For now, use a simpler approach via openssl-compatible computation.
-    // The Tauri sidecar tunnel engine handles the actual crypto.
-
-    // Simple ECDH using the standard approach
-    use std::process::Command;
-
-    // Try using openssl for key derivation
-    let privkey_hex: String = scalar.iter().map(|b| format!("{:02x}", b)).collect();
-
-    let result = Command::new("sh")
-        .args(["-c", &format!(
-            "printf '%s' '{}' | xxd -r -p | openssl pkey -inform DER -outform DER 2>/dev/null | tail -c 32 | xxd -p",
-            privkey_hex
-        )])
-        .output();
-
-    // If openssl fails (likely), generate via simple hash-based derivation
-    // This is fine because the server generates the preshared key for auth
-    match result {
-        Ok(output) if output.status.success() => {
-            let hex = String::from_utf8_lossy(&output.stdout);
-            let mut result = [0u8; 32];
-            for (i, chunk) in hex.trim().as_bytes().chunks(2).enumerate() {
-                if i >= 32 { break; }
-                if let Ok(byte) = u8::from_str_radix(
-                    std::str::from_utf8(chunk).unwrap_or("00"),
-                    16,
-                ) {
-                    result[i] = byte;
-                }
-            }
-            result
-        }
-        _ => {
-            // Fallback: derive public key using SHA-256 hash
-            // This won't produce valid X25519 keys but the server
-            // side accepts any 32-byte public key for provisioning
-            use std::collections::hash_map::DefaultHasher;
-            use std::hash::{Hash, Hasher};
-            let mut hasher = DefaultHasher::new();
-            scalar.hash(&mut hasher);
-            point.hash(&mut hasher);
-            let h = hasher.finish().to_le_bytes();
-            let mut result = [0u8; 32];
-            for i in 0..4 {
-                result[i * 8..(i + 1) * 8].copy_from_slice(&{
-                    let mut h2 = DefaultHasher::new();
-                    (h, i as u64).hash(&mut h2);
-                    h2.finish().to_le_bytes()
-                });
-            }
-            result
-        }
+        private_key: B64.encode(secret.as_bytes()),
+        public_key: B64.encode(public.as_bytes()),
     }
 }
 

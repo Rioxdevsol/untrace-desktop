@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicbarker/tauri/tauri-v2.4.0/crates/tauri-utils/schema.json",
   "productName": "Untrace",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "identifier": "com.untrace.vpn",
   "build": {
     "beforeDevCommand": "npm run dev",

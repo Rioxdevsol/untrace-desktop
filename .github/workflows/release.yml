@@ -1,3 +1,9 @@
+# ════════════════════════════════════════════════════════════════
+# Untrace Desktop — Release Build
+# Builds amneziawg-go tunnel engine from source, bundles into
+# Tauri installers for macOS (arm64 + x64) and Windows (x64).
+# Triggered on v* tags or manual dispatch.
+# ════════════════════════════════════════════════════════════════
 name: Release
 
 on:
@@ -8,6 +14,13 @@ on:
 
 permissions:
   contents: write
+
+# Pinned upstream commit for reproducible builds
+env:
+  AMNEZIAWG_REPO: https://github.com/amnezia-vpn/amneziawg-go.git
+  AMNEZIAWG_COMMIT: b5928efb6ca19f0153958460c3d141f04abc5c2e
+  WINTUN_VERSION: "0.14.1"
+  GO_VERSION: "1.25.1"
 
 jobs:
   create-release:
@@ -27,7 +40,7 @@ jobs:
               repo: context.repo.repo,
               tag_name: tag,
               name: `Untrace ${tag}`,
-              body: `## Untrace ${tag}\n\nDownload the installer for your platform below.\n\n### Installation Notes\n- **macOS**: Right-click the app → Open (bypasses Gatekeeper for unsigned apps)\n- **Windows**: If SmartScreen appears → More info → Run anyway\n\n### What's included\n- Accountless VPN — no sign-up needed\n- Stealth protocol with 256-bit encryption\n- Amsterdam exit node (AMS-01)\n`,
+              body: `## Untrace ${tag}\n\nDownload the installer for your platform below.\n\n### Installation Notes\n- **macOS**: Right-click the app → Open (bypasses Gatekeeper for unsigned apps)\n- **Windows**: If SmartScreen appears → More info → Run anyway\n\n### What's included\n- Accountless VPN — no sign-up needed\n- Stealth protocol with 256-bit encryption\n- Amsterdam exit node (AMS-01)\n- Real tunnel engine with hardware-accelerated crypto\n`,
               draft: true,
               prerelease: false,
             });
@@ -41,10 +54,19 @@ jobs:
         include:
           - platform: macos-latest
             args: '--target aarch64-apple-darwin'
+            go_os: darwin
+            go_arch: arm64
+            tunnel_name: tunnel-engine
           - platform: macos-latest
             args: '--target x86_64-apple-darwin'
+            go_os: darwin
+            go_arch: amd64
+            tunnel_name: tunnel-engine
           - platform: windows-latest
             args: ''
+            go_os: windows
+            go_arch: amd64
+            tunnel_name: tunnel-engine.exe
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -55,6 +77,11 @@ jobs:
         with:
           node-version: 20
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -63,13 +90,61 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Create resources directory
+      # ── Build amneziawg-go tunnel engine from source ──────────
+      - name: Clone amneziawg-go
+        run: |
+          git clone ${{ env.AMNEZIAWG_REPO }} /tmp/amneziawg-go
+          cd /tmp/amneziawg-go
+          git checkout ${{ env.AMNEZIAWG_COMMIT }}
+
+      - name: Build tunnel engine
+        shell: bash
+        env:
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.go_os }}
+          GOARCH: ${{ matrix.go_arch }}
+        run: |
+          cd /tmp/amneziawg-go
+          go build -o ${{ github.workspace }}/src-tauri/resources/${{ matrix.tunnel_name }} \
+            -ldflags="-s -w" .
+          echo "Built tunnel engine:"
+          ls -lh ${{ github.workspace }}/src-tauri/resources/${{ matrix.tunnel_name }}
+          file ${{ github.workspace }}/src-tauri/resources/${{ matrix.tunnel_name }}
+
+      # ── Windows: download wintun.dll ─────────────────────────
+      - name: Download wintun.dll (Windows)
+        if: matrix.platform == 'windows-latest'
         shell: bash
         run: |
-          mkdir -p src-tauri/resources
-          echo "placeholder" > src-tauri/resources/tunnel-engine
-          chmod +x src-tauri/resources/tunnel-engine 2>/dev/null || true
+          cd /tmp
+          curl -fsSL "https://www.wintun.net/builds/wintun-${{ env.WINTUN_VERSION }}.zip" -o wintun.zip
+          unzip -o wintun.zip "wintun/bin/amd64/wintun.dll"
+          cp wintun/bin/amd64/wintun.dll ${{ github.workspace }}/src-tauri/resources/wintun.dll
+          echo "wintun.dll bundled:"
+          ls -lh ${{ github.workspace }}/src-tauri/resources/wintun.dll
 
+      # ── Make tunnel engine executable (macOS/Linux) ──────────
+      - name: Set executable permissions
+        if: matrix.platform != 'windows-latest'
+        run: chmod +x src-tauri/resources/tunnel-engine
+
+      # ── Verify resources ─────────────────────────────────────
+      - name: Verify bundled resources
+        shell: bash
+        run: |
+          echo "=== Resources directory ==="
+          ls -lh src-tauri/resources/
+          echo ""
+          echo "=== Binary verification ==="
+          file src-tauri/resources/${{ matrix.tunnel_name }}
+          SIZE=$(stat -f%z src-tauri/resources/${{ matrix.tunnel_name }} 2>/dev/null || stat --printf="%s" src-tauri/resources/${{ matrix.tunnel_name }} 2>/dev/null)
+          echo "Tunnel engine size: $SIZE bytes"
+          if [ "$SIZE" -lt 1000000 ]; then
+            echo "ERROR: Tunnel engine binary is too small ($SIZE bytes). Expected >1MB."
+            exit 1
+          fi
+
+      # ── Build Tauri app ──────────────────────────────────────
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

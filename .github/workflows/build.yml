@@ -1,18 +1,26 @@
 # ════════════════════════════════════════════════════════════════
-# Untrace Desktop — Cross-platform Build (macOS, Windows, Linux)
-# Triggered on push to main/master or manual dispatch.
-# Produces DMG (macOS), NSIS installer (Windows), AppImage/deb (Linux).
+# Untrace Desktop — CI Build (PR/push validation)
+# Builds amneziawg-go from source and produces Tauri installers.
+# Artifacts uploaded but NOT published to a release.
 # ════════════════════════════════════════════════════════════════
 name: Build Desktop
 
 on:
   push:
     branches: [main, master]
-    tags: ['v*']
+  pull_request:
+    branches: [main, master]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+# Pinned upstream commit for reproducible builds
+env:
+  AMNEZIAWG_REPO: https://github.com/amnezia-vpn/amneziawg-go.git
+  AMNEZIAWG_COMMIT: b5928efb6ca19f0153958460c3d141f04abc5c2e
+  WINTUN_VERSION: "0.14.1"
+  GO_VERSION: "1.25.1"
 
 jobs:
   build:
@@ -23,12 +31,21 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
             label: macOS-arm64
+            go_os: darwin
+            go_arch: arm64
+            tunnel_name: tunnel-engine
           - os: macos-latest
             target: x86_64-apple-darwin
             label: macOS-x64
+            go_os: darwin
+            go_arch: amd64
+            tunnel_name: tunnel-engine
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             label: Windows-x64
+            go_os: windows
+            go_arch: amd64
+            tunnel_name: tunnel-engine.exe
 
     runs-on: ${{ matrix.os }}
     name: Build (${{ matrix.label }})
@@ -42,6 +59,11 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -50,32 +72,57 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Prepare tunnel engine placeholder
+      # ── Build amneziawg-go tunnel engine from source ──────────
+      - name: Clone amneziawg-go
+        run: |
+          git clone ${{ env.AMNEZIAWG_REPO }} /tmp/amneziawg-go
+          cd /tmp/amneziawg-go
+          git checkout ${{ env.AMNEZIAWG_COMMIT }}
+
+      - name: Build tunnel engine
+        shell: bash
+        env:
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.go_os }}
+          GOARCH: ${{ matrix.go_arch }}
+        run: |
+          cd /tmp/amneziawg-go
+          go build -o ${{ github.workspace }}/src-tauri/resources/${{ matrix.tunnel_name }} \
+            -ldflags="-s -w" .
+          echo "Built tunnel engine:"
+          ls -lh ${{ github.workspace }}/src-tauri/resources/${{ matrix.tunnel_name }}
+          file ${{ github.workspace }}/src-tauri/resources/${{ matrix.tunnel_name }}
+
+      - name: Download wintun.dll (Windows)
+        if: matrix.os == 'windows-latest'
         shell: bash
         run: |
-          mkdir -p src-tauri/resources
-          echo "placeholder" > src-tauri/resources/tunnel-engine
-          chmod +x src-tauri/resources/tunnel-engine 2>/dev/null || true
+          cd /tmp
+          curl -fsSL "https://www.wintun.net/builds/wintun-${{ env.WINTUN_VERSION }}.zip" -o wintun.zip
+          unzip -o wintun.zip "wintun/bin/amd64/wintun.dll"
+          cp wintun/bin/amd64/wintun.dll ${{ github.workspace }}/src-tauri/resources/wintun.dll
+
+      - name: Set executable permissions
+        if: matrix.os != 'windows-latest'
+        run: chmod +x src-tauri/resources/tunnel-engine
+
+      - name: Verify resources
+        shell: bash
+        run: |
+          ls -lh src-tauri/resources/
+          file src-tauri/resources/${{ matrix.tunnel_name }}
+          SIZE=$(stat -f%z src-tauri/resources/${{ matrix.tunnel_name }} 2>/dev/null || stat --printf="%s" src-tauri/resources/${{ matrix.tunnel_name }} 2>/dev/null)
+          if [ "$SIZE" -lt 1000000 ]; then
+            echo "ERROR: Tunnel engine too small ($SIZE bytes)"
+            exit 1
+          fi
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Skip code signing for unsigned builds
           TAURI_SIGNING_PRIVATE_KEY: ""
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'Untrace v__VERSION__'
-          releaseBody: |
-            ## Untrace v__VERSION__
-
-            Download the installer for your platform below.
-
-            ### Installation Notes
-            - **macOS**: Right-click the app → Open (bypasses Gatekeeper for unsigned apps)
-            - **Windows**: If SmartScreen appears → More info → Run anyway
-          releaseDraft: true
-          prerelease: false
           args: --target ${{ matrix.target }}
 
       - name: Upload artifacts
