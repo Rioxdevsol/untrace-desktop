@@ -102,6 +102,8 @@ jobs:
           curl -fsSL "https://www.wintun.net/builds/wintun-${{ env.WINTUN_VERSION }}.zip" -o wintun.zip
           unzip -o wintun.zip "wintun/bin/amd64/wintun.dll"
           cp wintun/bin/amd64/wintun.dll "$GITHUB_WORKSPACE/src-tauri/resources/wintun.dll"
+          echo "wintun.dll bundled:"
+          ls -lh "$GITHUB_WORKSPACE/src-tauri/resources/wintun.dll"
 
       - name: Set executable permissions
         if: matrix.os != 'windows-latest'
@@ -112,7 +114,7 @@ jobs:
         run: |
           ls -lh src-tauri/resources/
           file src-tauri/resources/${{ matrix.tunnel_name }}
-          SIZE=$(stat -f%z src-tauri/resources/${{ matrix.tunnel_name }} 2>/dev/null || stat --printf="%s" src-tauri/resources/${{ matrix.tunnel_name }} 2>/dev/null)
+          SIZE=$(wc -c < src-tauri/resources/${{ matrix.tunnel_name }})
           if [ "$SIZE" -lt 1000000 ]; then
             echo "ERROR: Tunnel engine too small ($SIZE bytes)"
             exit 1

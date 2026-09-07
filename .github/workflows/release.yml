@@ -122,7 +122,7 @@ jobs:
           unzip -o wintun.zip "wintun/bin/amd64/wintun.dll"
           cp wintun/bin/amd64/wintun.dll "$GITHUB_WORKSPACE/src-tauri/resources/wintun.dll"
           echo "wintun.dll bundled:"
-          ls -lh ${{ github.workspace }}/src-tauri/resources/wintun.dll
+          ls -lh "$GITHUB_WORKSPACE/src-tauri/resources/wintun.dll"
 
       # ── Make tunnel engine executable (macOS/Linux) ──────────
       - name: Set executable permissions
@@ -138,7 +138,7 @@ jobs:
           echo ""
           echo "=== Binary verification ==="
           file src-tauri/resources/${{ matrix.tunnel_name }}
-          SIZE=$(stat -f%z src-tauri/resources/${{ matrix.tunnel_name }} 2>/dev/null || stat --printf="%s" src-tauri/resources/${{ matrix.tunnel_name }} 2>/dev/null)
+          SIZE=$(wc -c < src-tauri/resources/${{ matrix.tunnel_name }})
           echo "Tunnel engine size: $SIZE bytes"
           if [ "$SIZE" -lt 1000000 ]; then
             echo "ERROR: Tunnel engine binary is too small ($SIZE bytes). Expected >1MB."
